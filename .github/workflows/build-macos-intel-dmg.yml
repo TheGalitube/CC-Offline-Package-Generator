@@ -24,7 +24,17 @@ jobs:
           python-version: "3.11"
 
       - name: Install macOS packaging tools
-        run: brew install platypus create-dmg pipenv
+        run: brew install create-dmg pipenv
+
+      - name: Install Platypus command-line tool
+        env:
+          PLATYPUS_VERSION: "5.5.0"
+        run: |
+          curl -fsSL "https://github.com/sveinbjornt/Platypus/releases/download/v${PLATYPUS_VERSION}/platypus${PLATYPUS_VERSION}.zip" -o "$RUNNER_TEMP/platypus.zip"
+          mkdir -p "$RUNNER_TEMP/platypus"
+          ditto -x -k "$RUNNER_TEMP/platypus.zip" "$RUNNER_TEMP/platypus"
+          sudo bash "$RUNNER_TEMP/platypus/Platypus.app/Contents/Resources/InstallCommandLineTool.sh" "$RUNNER_TEMP/platypus/Platypus.app/Contents/Resources"
+          test -x /usr/local/bin/platypus
 
       - name: Install Python dependencies
         run: pipenv install --python "$(command -v python3)"
