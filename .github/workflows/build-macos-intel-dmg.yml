@@ -1,0 +1,43 @@
+name: Build macOS Intel DMG
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build DMG (Intel)
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install macOS packaging tools
+        run: brew install platypus create-dmg pipenv
+
+      - name: Install Python dependencies
+        run: pipenv install --python "$(command -v python3)"
+
+      - name: Build DMG
+        env:
+          TERM: xterm-256color
+        run: pipenv run ./build_app.sh
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: CC-Offline-Package-Generator-macOS-Intel
+          path: dmg/CC_Offline_Package_Generator.dmg
+          if-no-files-found: error
+          retention-days: 30
