@@ -286,7 +286,7 @@ def parse_products_xml(products_xml):
                 'versions': OrderedDict()
             }
 
-        products[sap]['versions'][version] = {
+        version_info = {
             'sapCode': sap,
             'version': version,
             'apPlatform': appplatform,
@@ -295,6 +295,12 @@ def parse_products_xml(products_xml):
             } for d in dependencies],
             'buildGuid': p.find('platforms/platform/languageSet').get('buildGuid')
         }
+        # Adobe can return the same product/version for multiple platforms.
+        # Keep a usable build GUID if another platform entry for this version is empty.
+        current_version = products[sap]['versions'].get(version)
+        if (not current_version or version_info['buildGuid']
+                or not current_version.get('buildGuid')):
+            products[sap]['versions'][version] = version_info
     return products, cdn
 
 
