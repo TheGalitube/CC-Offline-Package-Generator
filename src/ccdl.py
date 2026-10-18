@@ -298,6 +298,40 @@ def parse_products_xml(products_xml):
     return products, cdn
 
 
+def get_dependency_build_guid(dependency, *catalogs):
+    """Find a dependency build in the available product catalogs."""
+    sap_code = dependency['sapCode']
+    version = dependency['version']
+    for catalog in catalogs:
+        if not catalog:
+            continue
+        product = catalog.get(sap_code)
+        version_info = product.get('versions', {}).get(version) if product else None
+        build_guid = version_info.get('buildGuid') if version_info else None
+        if build_guid:
+            return build_guid
+    return None
+
+
+def resolve_dependencies(dependencies, *catalogs):
+    """Resolve all required dependency builds or report missing catalog data."""
+    resolved = []
+    for dependency in dependencies:
+        build_guid = get_dependency_build_guid(dependency, *catalogs)
+        if not build_guid:
+            raise ValueError(
+                "Required dependency {} version {} is missing from Adobe's product "
+                "catalog for the selected architecture.".format(
+                    dependency['sapCode'], dependency['version'])
+            )
+        resolved.append({
+            'sapCode': dependency['sapCode'],
+            'version': dependency['version'],
+            'buildGuid': build_guid
+        })
+    return resolved
+
+
 def questiony(question: str) -> bool:
     """Question prompt default Y."""
     reply = None
@@ -360,6 +394,7 @@ def runccdl():
 
     print('Parsing products.xml')
     products, cdn = parse_products_xml(products_xml)
+    productsintel = None
     if ism1:
         productsintel = products
         products, cdn = parse_products_xml(products_xmlm1)
@@ -496,15 +531,12 @@ def runccdl():
     print('')
 
     prodInfo = versions[version]
-    prods_to_download = []
     dependencies = prodInfo['dependencies']
-    for d in dependencies:
-        try:
-            prods_to_download.append({'sapCode': d['sapCode'], 'version': d['version'],
-                                      'buildGuid': products[d['sapCode']]['versions'][d['version']]['buildGuid']})
-        except KeyError:
-            prods_to_download.append({'sapCode': d['sapCode'], 'version': d['version'],
-                                     'buildGuid': productsintel[d['sapCode']]['versions'][d['version']]['buildGuid']})
+    try:
+        prods_to_download = resolve_dependencies(
+            dependencies, products, productsintel)
+    except ValueError as error:
+        sys.exit(str(error))
 
     prods_to_download.insert(
         0, {'sapCode': prodInfo['sapCode'], 'version': prodInfo['version'], 'buildGuid': prodInfo['buildGuid']})
